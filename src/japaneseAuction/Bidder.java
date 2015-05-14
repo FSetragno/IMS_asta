@@ -1,5 +1,5 @@
 package japaneseAuction;
-
+//commento
 import jade.core.Agent;
 import jade.core.behaviours.*;
 import jade.core.AID;
