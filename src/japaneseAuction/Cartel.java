@@ -113,7 +113,7 @@ public class Cartel extends Agent{
 			}
 			return false;
 		}
-		//inform colluded bidders on the auction outcome
+		//inform colluded  bidders on the auction outcome
 		private void inform_colluded_bidders(boolean outcome){
 			ACLMessage start = new ACLMessage(ACLMessage.INFORM);
 			Enumeration<AID> enumKey = colluded_bidders.keys();
