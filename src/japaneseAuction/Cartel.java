@@ -22,7 +22,7 @@ public class Cartel extends Agent{
 	State state = State.WAITING;
 	int new_price;
 	int colluded_number;
-	int receivedBids = 0;
+	int receivedBids;
 	Hashtable<AID, Integer> colluded_bidders = new Hashtable<AID, Integer>(); //lista di bidder collusi con relative offerte
 	private MessageTemplate mt;
 	ACLMessage msg;
@@ -33,6 +33,7 @@ public class Cartel extends Agent{
 		if (args != null && args.length == 2){
 			auctioneer = new AID((String)args[0], AID.ISLOCALNAME);
 			colluded_number = Integer.parseInt((String)args[1]);
+			receivedBids = 0;
 			for(int i = 0; i < colluded_number; i++){
 				colluded_bidders.put(new AID("colluded" + Integer.toString(i), AID.ISLOCALNAME), 0);
 			}
@@ -66,7 +67,7 @@ public class Cartel extends Agent{
 			start.setConversationId("auction");
 			start.setReplyWith("cfp"+System.currentTimeMillis()); // Unique value
 			myAgent.send(start);
-			System.out.println("The cartel is informing colluded bidders that the auction started");
+			System.out.println("The cartel is informing " + Integer.toString(colluded_number) + " colluded bidders that the auction started");
 		}		
 	}
 	
@@ -79,12 +80,14 @@ public class Cartel extends Agent{
 				String cont = reply.getContent();
 				colluded_bidders.put(reply.getSender(), Integer.parseInt(cont));
 				receivedBids ++;
+				System.out.println("The cartel received a bid of " + cont + " from agent " + reply.getSender().getName() + ". Received bids: " + Integer.toString(receivedBids));
 			}
 			else{
 				block();
 			}
-			if(receivedBids == colluded_number)
+			/*if(receivedBids == colluded_number){
 				removeBehaviour(this);
+			}*/
 		}		
 	}
 	
@@ -96,7 +99,7 @@ public class Cartel extends Agent{
 			if (msg != null){
 				String content = msg.getContent();
 				if (content.equals("WIN")){
-					System.out.println("Bidder-agent " + getAID().getName() + " won the item for " + new_price + " units.");
+					System.out.println("The cartel " + getAID().getName() + " won the item for " + new_price + " units.");
 					
 				}
 				else{
@@ -187,10 +190,13 @@ public class Cartel extends Agent{
 				break;
 			case EXITING:
 				
-				if(receiveWin())//perso	
+				if(receiveWin()){//perso	
 					inform_colluded_bidders(false);
-				else
+				}
+				else{
 					inform_colluded_bidders(false);
+				}
+				doDelete();
 				break;
 			}
 			
