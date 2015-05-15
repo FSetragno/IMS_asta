@@ -28,7 +28,7 @@ public class Cartel extends Agent{
 	ACLMessage msg;
 	
 	protected void setup(){
-		System.out.println("The cartel" + getAID().getName() + "has started");
+		System.out.println("The cartel " + getAID().getName() + "has started");
 		Object[] args = getArguments();
 		if (args != null && args.length == 2){
 			auctioneer = new AID((String)args[0], AID.ISLOCALNAME);
@@ -39,7 +39,7 @@ public class Cartel extends Agent{
 			}
 			addBehaviour(new SendInformBehaviour()); //one shot
 			addBehaviour(new CollectBidsBehaviour()); //ciclo, riceve i bid
-			addBehaviour(new BidderBehaviour()); //ciclico, simile a quello dei bidder
+			//addBehaviour(new BidderBehaviour()); //ciclico, simile a quello dei bidder
 		}
 		else {
 			System.out.println("No number of agents specified.");
@@ -85,9 +85,10 @@ public class Cartel extends Agent{
 			else{
 				block();
 			}
-			/*if(receivedBids == colluded_number){
+			if(receivedBids == colluded_number){
+				addBehaviour(new BidderBehaviour());
 				removeBehaviour(this);
-			}*/
+			}
 		}		
 	}
 	
@@ -100,7 +101,7 @@ public class Cartel extends Agent{
 				String content = msg.getContent();
 				if (content.equals("WIN")){
 					System.out.println("The cartel " + getAID().getName() + " won the item for " + new_price + " units.");
-					
+					inform_colluded_bidders(true);
 				}
 				else{
 					System.out.println("PANICO");
@@ -112,7 +113,7 @@ public class Cartel extends Agent{
 			}
 			return false;
 		}
-		//inform colluded bidders on auction outcome
+		//inform colluded bidders on the auction outcome
 		private void inform_colluded_bidders(boolean outcome){
 			ACLMessage start = new ACLMessage(ACLMessage.INFORM);
 			Enumeration<AID> enumKey = colluded_bidders.keys();
@@ -154,7 +155,6 @@ public class Cartel extends Agent{
 				msg = myAgent.receive(mt);
 				boolean blockcfp = false;
 				boolean go_on = false;
-				int max_price;
 				if (msg != null) {
 					// CFP Message received. Process it
 					new_price = Integer.parseInt(msg.getContent());
@@ -183,8 +183,7 @@ public class Cartel extends Agent{
 				else {
 					blockcfp = true;
 				}
-				if (blockcfp && receiveWin()){
-					inform_colluded_bidders(true);
+				if (blockcfp && receiveWin()){					
 					block();
 				}
 				break;
@@ -193,9 +192,7 @@ public class Cartel extends Agent{
 				if(receiveWin()){//perso	
 					inform_colluded_bidders(false);
 				}
-				else{
-					inform_colluded_bidders(false);
-				}
+				
 				doDelete();
 				break;
 			}
