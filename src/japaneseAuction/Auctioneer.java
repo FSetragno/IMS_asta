@@ -12,6 +12,26 @@ import jade.lang.acl.MessageTemplate;
 
 public class Auctioneer extends Agent{
 
+	private class Withdrawal 
+	{ 
+		AID agent;
+		Long proposal;
+		
+		public Withdrawal(AID a, Long p){
+			agent = a;
+			proposal = p;
+		}
+		
+		public AID getAgent(){
+			return agent;
+		}
+		public Long getProposal(){
+			return proposal;
+		}
+	}
+	
+	List<Withdrawal> withdrawed = new ArrayList<Withdrawal>();
+	
 	List<AID> bidders = new ArrayList<AID>();
 	
 	public enum State {
@@ -93,6 +113,7 @@ public class Auctioneer extends Agent{
 
 		@Override
 		protected void onTick() {
+			withdrawed = new ArrayList<Withdrawal>();
 			price += increment;
 			ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
 			for (int i = 0; i < bidders.size(); ++i) {
@@ -100,7 +121,7 @@ public class Auctioneer extends Agent{
 			} 
 			cfp.setContent(Integer.toString(price));
 			cfp.setConversationId("bid");
-			cfp.setReplyWith("cfp"+System.currentTimeMillis()); // Unique value
+			cfp.setReplyWith(Long.toString(System.currentTimeMillis())); // Unique value
 			System.out.println("Auctioneer-agent " + getAID().getName() + " is proposing " + Integer.toString(price) + ".");
 			myAgent.send(cfp);
 			// Prepare the template to get proposals
@@ -113,37 +134,94 @@ public class Auctioneer extends Agent{
 	
 	private class HandleCallsBehaviour extends CyclicBehaviour{
 
-		@Override
+		boolean waitLast = false;
+
+		private void informWinner(AID winner, int payPrice){
+			//sposta in funzione que
+			
+			System.out.println("The winner is " + winner.getName() + ".");
+			System.out.println("The price to be paid for the item is " + Integer.toString(payPrice) + ".");
+	
+			//Send a final INFORM message to the winner
+			ACLMessage win = new ACLMessage(ACLMessage.INFORM);
+			win.addReceiver(winner); 
+			win.setContent("WIN");
+			win.setConversationId("win");
+			myAgent.send(win);
+	
+			doDelete();
+		}
+		
 		public void action() {
 			ACLMessage reply = myAgent.receive(mt);
-			if (reply != null){
-				String cont = reply.getContent();
+			if(!waitLast){
+				if (reply != null){
+					String cont = reply.getContent();
 			
-				if (cont.equals("OUT")){
-					bidders.remove(reply.getSender());
-					System.out.println("Auctioneer-agent " + getAID().getName() + " received withdrawal of bidder-agent " + reply.getSender().getName() + ".");
-				}
-			
-				if (bidders.size() == 1){
-					System.out.println("End of the auction.");
-					System.out.println("The winner is " + bidders.get(0).getName() + ".");
-					System.out.println("The price to be paid for the item is " + Integer.toString(price) + ".");
+					if (cont.equals("OUT")){
+						bidders.remove(reply.getSender());
 					
-					//Send a final INFORM message to the winner
-					ACLMessage win = new ACLMessage(ACLMessage.INFORM);
-					win.addReceiver(bidders.get(0)); 
-					win.setContent("WIN");
-					win.setConversationId("win");
-					myAgent.send(win);
+					/*for(Iterator<Withdrawal> i = withdrawed.iterator(); i.hasNext();) {
+					       Withdrawal w = i.next();
+					       if(w.getProposal() < Long.parseLong(reply.getReplyWith())){
+					    	   //Do Something
+					    	   i.remove();
+					       }
+					 }
 					
-					doDelete();
-				}
+					System.out.println(reply.getReplyWith());*/
+						withdrawed.add(new Withdrawal(reply.getSender(), System.currentTimeMillis())); //da migliorare se abbiam tempo
+						System.out.println("Auctioneer-agent " + getAID().getName() + " received withdrawal of bidder-agent " + reply.getSender().getName() + ".");
+					}
 			
-			}
+					if (bidders.size() == 1){
+						System.out.println("End of the auction.");
+						System.out.println("Waiting for a possible last out message.");
+						//Facciamo che può anche avere vinto uno che si è ritirato prima dell'ultimo di cui si è ricevuto 
+						//il messagggio, a parità di cfp in cui si è usciti.
+						waitLast = true;
+					}
+			}	
+			
 			else{
 				block();
 			}
+	
 		}
+		else{
+			//ero in waitlast
+			if(reply != null){
+				String cont = reply.getContent();
+				
+				if (cont.equals("OUT")){
+					ArrayList<AID> candidates = new ArrayList<AID>();
+					candidates.add(bidders.get(0));
+			
+					for(int i = 0; i < withdrawed.size(); i++){
+						candidates.add(withdrawed.get(i).getAgent());
+					}
+			
+					//Scelgo in modo random chi ha vinto tra gli ultimi a uscire.
+					System.out.println("Received an OUT even from the last bidder. Choosing randomly the winner...");
+			
+					Random generator = new Random();
+					int winner = generator.nextInt(candidates.size());
+			
+					informWinner(candidates.get(winner), price - increment);
+					
+			}
+			else{
+				//se mi è arrivato l'ultimo inform
+				informWinner(bidders.get(0), price);
+				
+			}
+		}
+		else{
+			//vuol dire che nessuno mi ha più risposto (uno mi aveva già mandato prima un INFORM, quello è il vincitore
+			informWinner(bidders.get(0), price);
+			}
+		}
+	}
 		
 	}
 }
