@@ -9,6 +9,9 @@ import java.util.*;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
+import java.lang.Thread.*;
+
+
 public class Bidder extends Agent{
 
 	AID auctioneer;
@@ -54,7 +57,8 @@ public class Bidder extends Agent{
 			if (msg != null){
 				String content = msg.getContent();
 				if (content.equals("WIN")){
-					System.out.println("Bidder-agent " + getAID().getName() + " won the item for " + new_price + " units.");
+					//The min is needed for ties
+					System.out.println("Bidder-agent " + getAID().getName() + " won the item for " + Math.min(new_price, max_price) + " units.");
 				}
 				else{
 					System.out.println("PANICO");
@@ -118,7 +122,15 @@ public class Bidder extends Agent{
 					break;
 					
 				case EXITING:
-					receiveWin(); //If two agents are even, the first wins!
+				    //Wait for a possible last message of victory before exiting
+					try {
+					    Thread.sleep(1000);
+				    } catch (InterruptedException e) {
+					    // TODO Auto-generated catch block
+					    e.printStackTrace();
+				    }
+				    
+					receiveWin(); //If two agents are even, the winner is chosen randomly.
 					System.out.println("Bidding-agent " + getAID().getName() + " is quitting the auction.");
 					doDelete();
 					break;
