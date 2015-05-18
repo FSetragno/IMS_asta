@@ -1,9 +1,11 @@
 package japaneseAuction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Random;
 
 import japaneseAuction.Bidder.State;
 import jade.core.AID;
@@ -94,7 +96,41 @@ public class Cartel extends Agent{
 	
 	private class BidderBehaviour extends CyclicBehaviour{
 		
-		private void compute_payment(){
+		private boolean receiveWin(){
+			ArrayList<String> candidates = new ArrayList<String>();
+			String winner;
+			mt = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
+			msg = myAgent.receive(mt);
+			if (msg != null){
+				String content = msg.getContent();
+				if (content.equals("WIN")){
+					//find the winner
+					Enumeration<AID> enumKey = colluded_bidders.keys();
+					while(enumKey.hasMoreElements()) {
+					    AID key = enumKey.nextElement();
+					    if(colluded_bidders.get(key) == Collections.max(colluded_bidders.values())){
+					    	candidates.add(key.getName());
+					    	//winner = key.getName();
+					    }
+					}
+					Random generator = new Random();
+					int winner_index = generator.nextInt(candidates.size());
+					winner = candidates.get(winner_index);
+					System.out.println("The cartel " + getAID().getName() + " won the item for " + new_price + " units.");
+					inform_colluded_bidders(true, winner, compute_payment());					
+				}
+				else{
+					System.out.println("PANICO");
+				}
+				
+			}
+			else{
+				return true;
+			}
+			return false;
+		}
+		
+		private float compute_payment(){
 			int max_bid = 0;
 			int second_highest_bid = 0;
 			int value;
@@ -112,47 +148,50 @@ public class Cartel extends Agent{
 			    }
 			}
 			price_to_pay = Math.max(new_price, second_highest_bid);
-			System.out.println("Each colluded bidder receives an amount of " + Float.toString((price_to_pay-new_price)/colluded_number));
+			
+			return price_to_pay;
 		}
 		
-		private boolean receiveWin(){
-			mt = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
-			msg = myAgent.receive(mt);
-			if (msg != null){
-				String content = msg.getContent();
-				if (content.equals("WIN")){
-					System.out.println("The cartel " + getAID().getName() + " won the item for " + new_price + " units.");
-					inform_colluded_bidders(true);
-					compute_payment();
-				}
-				else{
-					System.out.println("PANICO");
-				}
-				
-			}
-			else{
-				return true;
-			}
-			return false;
-		}
+		
 		//inform colluded  bidders on the auction outcome
-		private void inform_colluded_bidders(boolean outcome){
-			ACLMessage start = new ACLMessage(ACLMessage.INFORM);
-			Enumeration<AID> enumKey = colluded_bidders.keys();
-			while(enumKey.hasMoreElements()) {
-			    AID key = enumKey.nextElement();
-			    start.addReceiver(key);
-			}				
-			if(!outcome){		
-				start.setContent("LOST");
+		private void inform_colluded_bidders(boolean outcome, String winner, float price_to_pay){
+			float reward = 0;
+			//informo tutti che hanno perso				
+			if(!outcome){	
+				ACLMessage start = new ACLMessage(ACLMessage.INFORM);
+				Enumeration<AID> enumKey = colluded_bidders.keys();
+				while(enumKey.hasMoreElements()) {
+				    AID key = enumKey.nextElement();
+				    start.addReceiver(key);
+				}
+				start.setConversationId("auction");	
+				start.setContent("LOST 0");
+				myAgent.send(start);
 				System.out.println("The cartel informs the colluded bidders that they have lost");
 			}
+			//informo il vincitore che ha vinto, e gli altri che hanno perso ma ricevono il premio
 			else{
-				start.setContent("WIN");
-				System.out.println("The cartel informs the colluded bidders that they have won");
+				reward = (price_to_pay-new_price)/colluded_number;
+				ACLMessage lostMsg = new ACLMessage(ACLMessage.INFORM);
+				ACLMessage winMsg = new ACLMessage(ACLMessage.INFORM);
+				Enumeration<AID> enumKey = colluded_bidders.keys();
+				while(enumKey.hasMoreElements()) {
+				    AID key = enumKey.nextElement();
+				    if(key.getName()!=winner){
+				    	lostMsg.addReceiver(key);
+				    }else{
+				    	winMsg.addReceiver(key);
+				    }
+				}
+				lostMsg.setConversationId("auction");	
+				lostMsg.setContent("LOST " + Float.toString(reward));
+				winMsg.setConversationId("auction");	
+				winMsg.setContent("WIN " + Float.toString(price_to_pay-reward));
+				myAgent.send(lostMsg);
+				myAgent.send(winMsg);
 			}
-			start.setConversationId("auction");	
-			myAgent.send(start);
+			
+			
 		}
 		
 		public void action(){
@@ -212,7 +251,7 @@ public class Cartel extends Agent{
 			case EXITING:
 				
 				if(receiveWin()){//perso	
-					inform_colluded_bidders(false);
+					inform_colluded_bidders(false, "", 0);
 				}
 				
 				doDelete();

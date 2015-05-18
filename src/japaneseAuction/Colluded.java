@@ -78,7 +78,12 @@ public class Colluded extends Agent{
 							System.out.println("Bidder-agent " + getAID().getName() + " won the item and pays " + splitStr[1] + " to the cartel.");
 						}
 						else if (splitStr[0].equals("LOST")){
-							System.out.println("Bidder-agent " + getAID().getName() + " lost the item, but receives " + splitStr[1] + " from the cartel.");
+							if(Float.parseFloat(splitStr[1])==0){
+								System.out.println("Bidder-agent " + getAID().getName() + " lost the item, and he does not receive any reward.");
+							}
+							else{
+								System.out.println("Bidder-agent " + getAID().getName() + " lost the item, but receives " + splitStr[1] + " from the cartel.");
+							}
 						}
 						else{
 							System.out.println("PANICO");
