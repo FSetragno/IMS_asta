@@ -94,6 +94,27 @@ public class Cartel extends Agent{
 	
 	private class BidderBehaviour extends CyclicBehaviour{
 		
+		private void compute_payment(){
+			int max_bid = 0;
+			int second_highest_bid = 0;
+			int value;
+			float price_to_pay;
+			//determine highest bids
+			Enumeration<AID> enumKey = colluded_bidders.keys();
+			while(enumKey.hasMoreElements()) {
+			    AID key = enumKey.nextElement();
+			    value = colluded_bidders.get(key);
+			    if(value > max_bid){
+			    	second_highest_bid = max_bid;
+			    	max_bid = value;
+			    }else if(value > second_highest_bid){
+			    	second_highest_bid = value;
+			    }
+			}
+			price_to_pay = Math.max(new_price, second_highest_bid);
+			System.out.println("Each colluded bidder receives an amount of " + Float.toString((price_to_pay-new_price)/colluded_number));
+		}
+		
 		private boolean receiveWin(){
 			mt = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
 			msg = myAgent.receive(mt);
@@ -102,6 +123,7 @@ public class Cartel extends Agent{
 				if (content.equals("WIN")){
 					System.out.println("The cartel " + getAID().getName() + " won the item for " + new_price + " units.");
 					inform_colluded_bidders(true);
+					compute_payment();
 				}
 				else{
 					System.out.println("PANICO");
@@ -163,7 +185,7 @@ public class Cartel extends Agent{
 					Enumeration<AID> enumKey = colluded_bidders.keys();
 					while(enumKey.hasMoreElements()) {
 					    AID key = enumKey.nextElement();
-					    if(colluded_bidders.get(key) > new_price)
+					    if(colluded_bidders.get(key) >= new_price)
 					    	go_on = true;
 					}
 					if (!go_on) {

@@ -60,6 +60,7 @@ public class Colluded extends Agent{
 						reply.setPerformative(ACLMessage.INFORM);
 						reply.setContent(Integer.toString(max_price));
 						state = State.ACTIVE;
+						myAgent.send(reply);
 					}
 					else{
 						block();
